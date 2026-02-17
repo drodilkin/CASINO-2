@@ -447,7 +447,7 @@
     <script>
         // ================== CORE ENGINE ==================
         const SYSTEM_CONFIG = {
-            ENDPOINT: 'https://script.google.com/macros/s/AKfycbxfwoR8LMBnSkS9WDxWejle4p3GcdgiA8AkWe0gmyeHn3_XSts_2aLjEQa3Dd0Pa5yTqw/exec', // ЗАМЕНИ НА СВОЙ URL
+            ENDPOINT: 'https://script.google.com/macros/s/AKfycbyyDc1QkFvQChdgQGzomwTyshAnBY9lz5Sdiln2SY68it_22Wn707z70SXdCXoDBqJIfA/exec', // ЗАМЕНИ НА СВОЙ URL
             REFRESH_RATE: 10000,
             DEBUG_MODE: true
         };
@@ -503,7 +503,7 @@
                         this.session.active = true;
                         this.session.userEmail = email;
                         this.session.userName = data.name;
-                        this.session.userCard = data.card;
+                        this.session.userCard = data.card || '';
                         this.session.mainBalance = data.mainBalance || 0;
                         this.session.casinoBalance = data.casinoBalance || 0;
                         this.session.isOperator = (email === 'operator@profit');
@@ -554,14 +554,14 @@
                         if (data.history && data.history.length > 0) {
                             let html = '';
                             data.history.forEach(item => {
-                                const isOutgoing = String(item[1] || "").toLowerCase() === this.session.userEmail.toLowerCase();
-                                const isCasino = String(item[1] || "").toUpperCase() === 'CASINO' || String(item[2] || "").toUpperCase() === 'CASINO';
+                                const from = String(item[1] || "").toLowerCase();
+                                const to = String(item[2] || "").toLowerCase();
+                                const isCasino = from === 'casino' || to === 'casino';
                                 if (!isCasino) return;
-                                
+                                const isOutgoing = from === this.session.userEmail.toLowerCase();
                                 const flowClass = isOutgoing ? 'amount-neg' : 'amount-pos';
                                 const prefix = isOutgoing ? '-' : '+';
                                 const timeStr = new Date(item[0]).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'});
-                                
                                 html += `
                                     <div class="history-row">
                                         <div class="history-meta">
@@ -707,6 +707,7 @@
                         CoreEngine.loadCasinoHistory();
                     } else {
                         CoreEngine.pushNotification(data.message || "Ошибка", true);
+                        document.getElementById(`${game}-result`).innerHTML = `<span class="lose">Ошибка: ${data.message}</span>`;
                     }
                 } catch (err) {
                     CoreEngine.pushNotification("Ошибка соединения", true);
@@ -715,7 +716,7 @@
             }
         };
 
-        // ========== МОДУЛЬ ПОПОЛНЕНИЯ/ВЫВОДА ==========
+        // ========== МОДУЛЬ ПОПОЛНЕНИЯ/ВЫВОДА (С НОРМАЛИЗАЦИЕЙ КАРТ) ==========
         const CasinoUI = {
             showDepositModal() {
                 document.getElementById('deposit-modal').style.display = 'flex';
@@ -730,8 +731,15 @@
                 if (!card) return CoreEngine.pushNotification("Введите номер карты", true);
                 if (isNaN(amount) || amount <= 0) return CoreEngine.pushNotification("Введите сумму", true);
                 
-                // Проверяем, что карта совпадает с картой пользователя
-                if (card !== CoreEngine.session.userCard) {
+                // Нормализация: убираем все пробелы из обеих строк для сравнения
+                const normalizedInput = card.replace(/\s+/g, '');
+                const normalizedStored = (CoreEngine.session.userCard || '').replace(/\s+/g, '');
+                
+                if (!normalizedStored) {
+                    return CoreEngine.pushNotification("У вас не привязана карта. Обратитесь к администратору.", true);
+                }
+                
+                if (normalizedInput !== normalizedStored) {
                     return CoreEngine.pushNotification("Неверный номер карты", true);
                 }
 
@@ -774,7 +782,14 @@
                 if (!card) return CoreEngine.pushNotification("Введите номер карты", true);
                 if (isNaN(amount) || amount <= 0) return CoreEngine.pushNotification("Введите сумму", true);
                 
-                if (card !== CoreEngine.session.userCard) {
+                const normalizedInput = card.replace(/\s+/g, '');
+                const normalizedStored = (CoreEngine.session.userCard || '').replace(/\s+/g, '');
+                
+                if (!normalizedStored) {
+                    return CoreEngine.pushNotification("У вас не привязана карта. Обратитесь к администратору.", true);
+                }
+                
+                if (normalizedInput !== normalizedStored) {
                     return CoreEngine.pushNotification("Неверный номер карты", true);
                 }
 
@@ -914,7 +929,7 @@
             CasinoEngine.init();
         });
 
-        console.log("%c CASINO FIT v1.0 ", "background: #ffd600; color: #000; font-weight: bold; padding: 5px;");
+        console.log("%c CASINO FIT v2.0 (С ИСПРАВЛЕННЫМИ КАРТАМИ) ", "background: #ffd600; color: #000; font-weight: bold; padding: 5px;");
     </script>
 </body>
 </html>
